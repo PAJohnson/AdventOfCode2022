@@ -25,7 +25,7 @@ void vectorPrint(const std::vector<long int>& in) {
 
 int main() {
     std::vector<long int> calories;
-    std::ifstream file("../inputs//input.txt");
+    std::ifstream file("../inputs/input.txt");
     std::string str; 
 
     long int calSum = 0;
