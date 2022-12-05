@@ -25,19 +25,19 @@ void partOne(const std::vector<std::pair<std::set<int>, std::set<int>>>& compart
 
 // split rucksacks into groups of 3 vectors sequentially and find the common element in each group of 3
 // sum common elements for answer
-void partTwo(std::vector<std::vector<int>>& rucksacks) {
+void partTwo(std::vector<std::set<int>>& rucksacks) {
     // process chunks of 3 rucksacks
     int sum = 0;
     for (int i = 0; i < rucksacks.size() - 2; i = i + 3) {
         std::unordered_map<int, int> triple;
         
-        for (int item : std::set<int>(rucksacks[i].begin(), rucksacks[i].end())) {
+        for (int item : rucksacks[i]) {
             triple[item] += 1;
         }
-        for (int item : std::set<int>(rucksacks[i+1].begin(), rucksacks[i+1].end())) {
+        for (int item : rucksacks[i+1]) {
             triple[item] += 1;
         }
-        for (int item : std::set<int>(rucksacks[i+2].begin(), rucksacks[i+2].end())) {
+        for (int item : rucksacks[i+2]) {
             triple[item] += 1;
         }
 
@@ -100,12 +100,12 @@ int main() {
         std::string str;
 
         // handle triples in partTwo()
-        std::vector<std::vector<int>> rucksacks;
+        std::vector<std::set<int>> rucksacks;
 
         while (std::getline(file, str)) {
-            std::vector<int> rucksack;
+            std::set<int> rucksack;
             for (char c : str) {
-                rucksack.push_back(prioritize(c));
+                rucksack.insert(prioritize(c));
             }
             rucksacks.push_back(rucksack);
         }
