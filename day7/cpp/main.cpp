@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <set>
 #include <cctype>
-#include <unordered_map>
+#include <map>
 #include <regex>
 
 #define INPUT "../inputs/input.txt"
@@ -22,64 +22,8 @@ std::vector<std::string> split(const std::string str, const std::string regex_st
     return list;
 }
 
-// tree data structure to represent directories and contents
-// use easy solutions, not good ones
-struct File {
-    std::string name;
-    size_t size;
-};
-
-struct Tree;
-
-struct Tree {
-    Tree* parent;
-    std::string name;
-    std::vector<Tree> dirs;
-    std::vector<File> files;
-};
-
-// recursive
-void printTree(Tree& t, int indent) {
-    std::cout << std::string(indent, ' ') << t.name << std::endl;
-    for (auto dir : t.dirs) {
-        printTree(dir, indent + 1);
-    }
-    for (auto f : t.files) {
-        std::cout << std::string(indent+1, ' ') << "- " << f.name << " " << f.size << std::endl;
-    }
-}
-
-unsigned long long calcSizes(Tree& t, std::unordered_map<std::string, unsigned long long>& sizes) {
-    unsigned long long size = 0;
-    // sum files
-    for (auto f : t.files) {
-        size += f.size;
-    }
-    // sum subdirs
-    for (auto d : t.dirs) {
-        size += calcSizes(d, sizes);
-    }
-    sizes[t.name] = size;
-    //std::cout << size << std::endl;
-    return size;
-}
-
-void printSizes(std::unordered_map<std::string, unsigned long long> sizes) {
-    for (auto s : sizes) {
-        std::cout << s.first << " " << s.second << std::endl;
-    }
-}
-
-void partOne() {
-    return;
-}
-
-void partTwo() {
-    return;
-}
-
 int main() {
-    std::ifstream file(INPUT);
+    std::ifstream file(SAMPLE);
     std::string str; 
 
     // part one - parse into trees
@@ -90,59 +34,82 @@ int main() {
     // first - test if regex can be used to strip start of string
 
     // rethink and tackle tomorrow
-    Tree root;
-    Tree* current = &root;
+    // Tried a tree before. This time, just do a map.
+    std::map<std::string, long int> fs;
+    std::string current_path = "root/";
     while (std::getline(file, str))
     {
-        //std::cout << str << std::endl;
-        if (str == "$ cd /") {
-            current->name = "/";
-        }
-        else if (str == "$ ls") {
-            //std::cout << "ls" << std::endl;
-            // following lines contain dirs and files
-            // make a new tree to insert into root
-        }
-        else if (str.find("$") == std::string::npos) {
-            // in ls output
-            if (str.find("dir") != std::string::npos) {
-                auto dirname = split(str, " ")[1];
-                //std::cout << "dir in line, inserting " << dirname << std::endl;
-                current->dirs.push_back(Tree{current, dirname});
-            }
-            else {
-                size_t size = stol(split(str, " ")[0]);
-                std::string fname = split(str, " ")[1];
-                //std::cout << "Inserting " << fname << std::endl;
-                current->files.push_back(File{fname, size});
-            }
-        }
-        else if (str.find("$ cd") != std::string::npos) {
+        // in ls output
+        if (str.find("$ cd") != std::string::npos) {
             auto dirname = split(str, " cd ")[1];
             if (dirname == "..") {
-                current = current->parent;
-                //std::cout << "moving up a directory " << std::endl;
+                // pop off everything after last '/' in current_path
+                current_path.pop_back();
+                while (current_path.back() != '/') {
+                    current_path.pop_back();
+                }
             }
             else {
-                //std::cout << "moving down a directory " << std::endl;
-                for (auto& d: current->dirs){
-                    if (dirname == d.name) {
-                        current = &d;
-                    }
+                // add to current path
+                if (dirname != "/") {
+                    current_path.append(dirname + "/");
                 }
             }
         }    
+        else if (str.find("$") == std::string::npos) {
+            if (str.find("dir") != std::string::npos) {
+                // do nothing with dirs until we try to cd into them
+            }
+            else {
+                std::string fname = split(str, " ")[1];
+                long size = stol(split(str, " ")[0]);
+                fs.insert({current_path + fname, size});
+            }
+        }
     }
-    printTree(root, 1);
-    std::unordered_map<std::string, unsigned long long> sizeMap;
-    calcSizes(root, sizeMap);
-    //printSizes(sizeMap);
-    unsigned long long partOne = 0;
-    for (auto s : sizeMap) {
-        if (s.second <= 100000) {
-            partOne += s.second;
-            std::cout << partOne << std::endl;
+
+    std::map<std::string, long> dirSizes;
+    for (auto p : fs) {
+        //std::cout << p.first << " " << p.second << std::endl;
+        auto dirs = split(p.first, "/");
+        dirs.pop_back(); // get rid of filename
+        std::string dirname;
+        for (auto dir : dirs) {
+            dirname = dirname + dir + "/";
+            dirSizes[dirname] += p.second;
+        }
+    }
+    // get list of subdirs
+    long partOne = 0;
+    for (auto d : dirSizes) {
+        //std::cout << d.first << " " << d.second << std::endl;
+        if (d.second <= 100000) {
+            partOne += d.second;
         }
     }
     std::cout << partOne << std::endl;
+
+    // part two - find smallest single directory to delete to get enough free space
+    long totalSpace = 70'000'000;
+
+    // really want to have the map iterate in order sorted by value, not key...
+    // make a vector of pairs and sort on the second value?
+    std::vector<std::pair<std::string, long>> sortedBySize;
+    for (auto d : dirSizes) {
+        sortedBySize.push_back(std::make_pair(d.first, d.second));
+    }
+
+    std::sort(sortedBySize.begin(), sortedBySize.end(), [=](auto& a, auto& b)
+    {
+        return a.second < b.second;
+    });
+
+    auto used = sortedBySize.back().second;
+    auto needed = 30'000'000 - (totalSpace - used);
+    for (auto d : sortedBySize) {
+        if (d.second > needed) {
+            std::cout << d.second << std::endl;
+            break;
+        }
+    }
 }
