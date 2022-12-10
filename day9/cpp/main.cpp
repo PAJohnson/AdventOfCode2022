@@ -4,13 +4,14 @@
 #include <string>
 #include <iterator>
 #include <algorithm>
-#include <set>
+#include <unordered_set>
 #include <cctype>
 #include <unordered_map>
 #include <regex>
 
 #define INPUT "../inputs/input.txt"
 #define SAMPLE "../inputs/sample.txt"
+#define SAMPLE2 "../inputs/sample2.txt"
 
 // from https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
 // Neat!
@@ -37,8 +38,60 @@ enum Direction {
     kRight
 };
 
-using Point = std::pair<int, int>;
-using Grid = std::set<Point>;
+struct Point {
+    Point() {
+        x = 0;
+        y = 0;
+    }
+    Point(int x_, int y_) {
+        x = x_;
+        y = y_;
+    }
+
+    Point operator+ (Point& rhs) {
+        Point res;
+        res.x = x + rhs.x;
+        res.y = y + rhs.y;
+        return res;
+    }
+
+    Point operator- (Point& rhs) {
+        Point res;
+        res.x = x - rhs.x;
+        res.y = y - rhs.y;
+        return res;
+    }
+
+    void move(enum Direction d) {
+        if (d == Direction::kUp) {
+            y += 1;
+        }
+        else if (d == Direction::kDown) {
+            y -= 1;
+        }
+        else if (d == Direction::kLeft) {
+            x -= 1;
+        }
+        else if (d == Direction::kRight) {
+            x += 1;
+        }
+    }
+
+    int x;
+    int y;
+};
+
+bool operator== (Point const& lhs, Point const& rhs) {
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
+}
+
+struct PointHash {
+    size_t operator()(const Point& p) const{
+        return static_cast<size_t>(std::abs(p.x * p.y));
+    }
+};
+
+using Grid = std::unordered_set<Point, PointHash>;
 using Move = std::pair<enum Direction, int>; // direction and distance
 std::vector<Move> moves;
 
@@ -48,9 +101,47 @@ void printMoves(std::vector<Move>& moves) {
     }
 }
 
-void printGrid(Grid& g) {
-    for (auto& p : g) {
-        std::cout << "(" << p.first << "," << p.second << ")\n";
+// make this similar to the examples on the page
+void printGrid(Grid& g, int xStart, int xEnd, int yStart, int yEnd) {
+    std::vector<char> row(xEnd - xStart, '.');
+    std::vector<std::vector<char>> dispGrid(yEnd - yStart, row);
+
+    int xOffset = xStart;
+    int yOffset = yStart;
+
+    for (auto& point : g) {
+        if (point.x < xEnd && point.y < yEnd && point.x >= xStart && point.y >= yStart){
+            dispGrid[point.y - yOffset][point.x - xOffset] = '#';
+        }
+    }
+
+    for (int i = dispGrid.size() - 1; i >= 0; i--) {
+        for (auto& c : dispGrid[i]) {
+            std::cout << c;
+        }
+        std::cout << std::endl;
+    }
+}
+
+void printRope(std::vector<Point> const& points, int xStart, int xEnd, int yStart, int yEnd) {
+    std::vector<char> row(xEnd - xStart, '.');
+    std::vector<std::vector<char>> dispGrid(yEnd - yStart, row);
+
+    int xOffset = xStart;
+    int yOffset = yStart;
+
+    for (int i = 0; i < points.size(); i++) {
+        auto point = points[i];
+        if (point.x < xEnd && point.y < yEnd && point.x >= xStart && point.y >= yStart){
+            dispGrid[point.y - yOffset][point.x - xOffset] = '0' + points.size() - i - 1;
+        }
+    }
+
+    for (int i = dispGrid.size() - 1; i >= 0; i--) {
+        for (auto& c : dispGrid[i]) {
+            std::cout << c;
+        }
+        std::cout << std::endl;
     }
 }
 
@@ -101,81 +192,61 @@ int main() {
     }
 
     // part one
-    Point head{0, 0};
-    Point tail{0, 0};
+    std::vector<Point> points(2, Point{0, 0});
     Grid grid;
 
-    auto doMove = [](Move& m, Grid& g, Point& h, Point& t) {
+    // part two change - refactor doMove to accept list of points
+    // run doMove on pairs of points, pick one to keep track of
+
+    // refactor this to move "head" first and then figure out where the
+    // tail is supposed to go
+    auto doMove = [](Move& m, Grid& g, std::vector<Point>& points, int tracked) {
         // move the h and see where the t goes
         // mark locations in grid that the t went as True
         for (int i = 0; i < m.second; i++) {
-            if (m.first == Direction::kUp) {
-                // t could be 9 possible places
-                // same place
-                // moving up, which cases will cause a move?
-                // same place - no move
-                // left - no move
-                // right - no move
-                // above - no move
-                // upleft - no move
-                // up right - no move
-                // downleft - t move up move right
-                // below - t move up
-                // downright - t move up move left
-                if (t.second == h.second - 1) {
-                    if (t.first == h.first - 1) {
-                        t.first += 1;
+            auto head = points[0];
+            head.move(m.first);
+            points[0] = head;
+            for (int i = 0; i < points.size() - 1; i++) {
+                auto& tempHead = points[i];
+                auto& tempNext = points[i+1];
+                auto diff = tempHead - tempNext;
+                // need to handle diagonal moves for part 2
+                if (std::abs(diff.x) > 1 || std::abs(diff.y) > 1) {
+                    if (diff.y > 0) {
+                        tempNext.y += 1;
                     }
-                    else if (t.first == h.first + 1) {
-                        t.first -= 1;
+                    if (diff.y < 0) {
+                        tempNext.y -= 1;
                     }
-                    t.second += 1;
+                    if (diff.x > 0) {
+                        tempNext.x += 1;
+                    }
+                    if (diff.x < 0) {
+                        tempNext.x -= 1;
+                    }
                 }
-                h.second += 1;
             }
-            else if (m.first == Direction::kLeft) {
-                if (t.first == h.first + 1) {
-                    if (t.second == h.second - 1) {
-                        t.second += 1;
-                    }
-                    else if (t.second == h.second + 1) {
-                        t.second -= 1;
-                    }
-                    t.first -= 1;
-                }
-                h.first -= 1;
-            }
-            else if (m.first == Direction::kRight) {
-                if (t.first == h.first - 1) {
-                    if (t.second == h.second - 1) {
-                        t.second += 1;
-                    }
-                    else if (t.second == h.second + 1) {
-                        t.second -= 1;
-                    }
-                    t.first += 1;
-                }
-                h.first += 1;
-            }
-            else if (m.first == Direction::kDown) {
-                if (t.second == h.second + 1) {
-                    if (t.first == h.first - 1) {
-                        t.first += 1;
-                    }
-                    else if (t.first == h.first + 1) {
-                        t.first -= 1;
-                    }
-                    t.second -= 1;
-                }
-                h.second -= 1;
-            } 
-            g.insert(t);
+            g.insert(points[tracked]);
         }
     };
 
     for (auto& m : moves) {
-        doMove(m, grid, head, tail);
+        doMove(m, grid, points, 1);
     }
 
     std::cout << grid.size() << std::endl;
+
+    // part two
+    // same thing, but with a rope of 10 knots
+
+    // part one
+    std::vector<Point> pointsTwo(10, Point());
+    Grid gridTwo;
+
+    for (auto& m : moves) {
+        doMove(m, gridTwo, pointsTwo, 9);
+    }
+
+    std::cout << gridTwo.size() << std::endl;
 }
