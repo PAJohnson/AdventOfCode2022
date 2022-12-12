@@ -58,6 +58,18 @@
         "unordered_map": "cpp",
         "xhash": "cpp",
         "array": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "deque": "cpp",
+        "functional": "cpp",
+        "unordered_set": "cpp",
+        "*.tcc": "cpp",
+        "bitset": "cpp",
+        "cwctype": "cpp",
+        "memory_resource": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "string_view": "cpp",
+        "numbers": "cpp",
+        "sstream": "cpp"
     }
 }
